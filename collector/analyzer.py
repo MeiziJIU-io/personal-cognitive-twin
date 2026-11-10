@@ -58,6 +58,10 @@ def analyze(root, model='collector-qwen:16k', endpoint='http://127.0.0.1:11434/a
     processed = 0
     try:
         with exclusive_worker(root):
+            from .experiences import build
+            report_dir = Path(root) / 'experiences'
+            build(root, report_dir)
+            print(f'Timeline: {(report_dir / "timeline.html").resolve()}', flush=True)
             while True:
                 if event_id is not None:
                     row = store.db.execute('SELECT id,evidence FROM events WHERE id=?', (event_id,)).fetchone()
@@ -113,6 +117,7 @@ def analyze(root, model='collector-qwen:16k', endpoint='http://127.0.0.1:11434/a
                     with store.db:
                         store.db.execute("UPDATE events SET attempts=attempts+1,error=?,status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END WHERE id=?",
                                          (str(exc)[:500], current_id))
+                    build(root, report_dir)
                     print(f'Failed event {current_id}: {exc}', flush=True)
                 processed += 1
                 if event_id is not None or (limit and processed >= limit):

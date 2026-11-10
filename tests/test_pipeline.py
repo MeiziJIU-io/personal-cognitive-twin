@@ -61,6 +61,21 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 import_bundle(temp / 'transfer.zip', imported)
 
+    def test_timeline_exists_before_first_model_response(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'data'
+            self.populate(root)
+            class Unavailable:
+                def open(inner, request, timeout):
+                    self.assertTrue((root / 'experiences/timeline.html').exists())
+                    drafts = (root / 'experiences/experiences.jsonl').read_text(encoding='utf-8')
+                    self.assertIn('pending', drafts)
+                    raise TimeoutError('test model unavailable')
+            with patch('collector.analyzer.urllib.request.build_opener', return_value=Unavailable()):
+                analyze(root, limit=1)
+            self.assertTrue((root / 'experiences/timeline.html').exists())
+            self.assertEqual((root / 'experiences/training_candidates.jsonl').read_text(), '')
+
     def test_tamper_rejected_and_no_partial_import(self):
         with tempfile.TemporaryDirectory() as temp:
             temp = Path(temp)
