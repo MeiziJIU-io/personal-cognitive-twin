@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from collector.core import Policy, Scheduler, Store
-from collector.agent import validate_result, endpoint_options
+from collector.model_protocol import validate_result, endpoint_options
 
 class PolicyTests(unittest.TestCase):
     def test_idle_resume_and_window_switch(self):

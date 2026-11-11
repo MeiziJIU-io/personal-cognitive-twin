@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import time
 import urllib.request
-from .agent import PROMPT, endpoint_options, validate_result
+from .model_protocol import PROMPT, endpoint_options, validate_result
 from .core import Store
 from .identity import device_id
 from .transport import portable_path
