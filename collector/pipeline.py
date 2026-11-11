@@ -24,6 +24,7 @@ def main():
         command.add_argument('--model', default='collector-qwen:16k')
         command.add_argument('--endpoint', default='http://127.0.0.1:11434/api/chat')
         if name == 'analyze':
+            command.add_argument('--provider', choices=['ollama', 'openai'], default='ollama')
             command.add_argument('--event-id', type=int)
             command.add_argument('--limit', type=int, default=0)
             command.add_argument('--watch', action='store_true')
@@ -57,7 +58,7 @@ def main():
     elif args.command == 'analyze':
         if args.limit < 0:
             parser.error('--limit must be nonnegative')
-        analyze(args.data, args.model, args.endpoint, args.event_id, args.limit, args.watch)
+        analyze(args.data, args.model, args.endpoint, args.event_id, args.limit, args.watch, provider=args.provider)
     elif args.command == 'build':
         print('Experience drafts:', len(experiences.build(args.data, args.out)))
     elif args.command == 'review':
