@@ -8,7 +8,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from .agent import endpoint_options
+from .model_protocol import endpoint_options
 from .sessions import atomic_json, utc_now
 from .transport import export_bundle, import_bundle
 

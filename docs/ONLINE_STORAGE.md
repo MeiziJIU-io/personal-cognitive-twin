@@ -2,7 +2,7 @@
 
 ## 更新后你会看到什么
 
-从现有分支运行 update.cmd 更新。每次启动 start.cmd 或 start-with-analysis.cmd 都新建一个会话；暂停/恢复仍是同一个会话。正常从托盘退出会关闭会话、生成本次 ZIP 包。强制关机可能留下 recording 状态，不能直接上传；确认采集已结束后用 `finish-session --data 会话路径` 标记 interrupted。
+从现有分支运行 update.cmd 更新。每次启动 窗口中点击开始采集（命令行辅助入口为 tools/start-with-analysis.cmd） 都新建一个会话；暂停/恢复仍是同一个会话。正常从托盘退出会关闭会话、生成本次 ZIP 包。强制关机可能留下 recording 状态，不能直接上传；确认采集已结束后用 `finish-session --data 会话路径` 标记 interrupted。
 
 ```
 data/
@@ -23,7 +23,7 @@ data/
 
 UTC 时间和本地偏移继续保留；图片重复时复用文件，但每次观察仍保留时间。每次开始捕获新的 session_id，共享设备 device_id。在线同步只接受已结束或明确标记中断的会话。结束包是当时的快照，后续分析结果可能更新；再次 sync 会上传新版，不覆盖线上历史快照。
 
-旧数据：退出所有采集/分析程序后双击 `migrate-history.cmd`。按旧 session_id 复制到 sessions/legacy；没有编号的旧数据归入一个“边界未知”的历史组。原 SQLite 和图片不删除，迁移可重复运行。迁移后 `analyze-local.cmd` 依次处理各会话；没有新目录时仍兼容旧 data。不要同时从旧库和迁移副本分析同一份数据。
+旧数据：退出所有采集/分析程序后双击 `tools/migrate-history.cmd`。按旧 session_id 复制到 sessions/legacy；没有编号的旧数据归入一个“边界未知”的历史组。原 SQLite 和图片不删除，迁移可重复运行。迁移后 `tools/analyze-local.cmd` 依次处理各会话；没有新目录时仍兼容旧 data。不要同时从旧库和迁移副本分析同一份数据。
 
 迁移是一次性快照，不会把后来写入旧库的记录合并进已迁移目录。更新后应使用新采集器，不再运行旧版本。旧 records 的实际启动/停止时间无法恢复，记录为首末观察范围。
 
@@ -82,9 +82,9 @@ $env:CAPTURE_API_TOKEN = '在本机填入服务端的token'
 .\.venv\Scripts\python.exe -m collector.pipeline sync --data data
 ```
 
-环境变量只对当前 PowerShell 及其子进程生效。要双击 sync-online.cmd 使用，请在 Windows 用户环境变量设置中保存这两个值，再重新打开资源管理器/登录会话。不要把 token 放进仓库中的 cmd 或 config.json。
+环境变量只对当前 PowerShell 及其子进程生效。要双击 tools/sync-online.cmd 使用，请在 Windows 用户环境变量设置中保存这两个值，再重新打开资源管理器/登录会话。不要把 token 放进仓库中的 cmd 或 config.json。
 
-可选设置 CAPTURE_AUTO_SYNC=1：采集结束或 analyze-local 完成会话分析后自动尝试上传。没有配置时完全本地运行。每个包最多自动重试 3 次（网络错误、429、部分 5xx），最终失败写 sync.json，之后双击 sync-online.cmd 重试。上传成功不会删除本地原始数据。收到回执才标记成功；连接中断后重传可安全去重。当前是整包重传，不是字节级断点续传。
+可选设置 CAPTURE_AUTO_SYNC=1：采集结束或 analyze-local 完成会话分析后自动尝试上传。没有配置时完全本地运行。每个包最多自动重试 3 次（网络错误、429、部分 5xx），最终失败写 sync.json，之后双击 tools/sync-online.cmd 重试。上传成功不会删除本地原始数据。收到回执才标记成功；连接中断后重传可安全去重。当前是整包重传，不是字节级断点续传。
 
 `sync` 默认遍历已知会话；正在采集的会话跳过并提示。单包压缩大小上限 256 MiB，展开上限 1 GiB，超限会明确失败并保留本地包；当前需使用更短会话，不自动分片。
 

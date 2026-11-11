@@ -10,7 +10,7 @@ import time
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from .sessions import create_session, finish_session, session_roots, update_index, atomic_json
-from .agent import endpoint_options
+from .model_protocol import endpoint_options
 
 PROJECT = Path(__file__).resolve().parent.parent
 SETTINGS = PROJECT / 'desktop-settings.json'

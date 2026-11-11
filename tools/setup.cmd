@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0.."
 if exist ".venv\Scripts\python.exe" goto verify
 py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
 if not errorlevel 1 goto use_py
@@ -23,8 +23,7 @@ if errorlevel 1 goto failed
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m collector
-if errorlevel 1 goto failed
+echo Installation complete.
 exit /b 0
 :failed
 echo Startup failed. Please share the error above.
