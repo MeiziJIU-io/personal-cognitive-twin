@@ -33,6 +33,13 @@ def export_bundle(root, destination):
                 source.backup(target)
                 screenshots = {json.loads(row[0]).get('screenshot') for row in target.execute('SELECT evidence FROM events')}
         files = {'events.sqlite3': staging / 'events.sqlite3'}
+        for name in ('session.json', 'lifecycle.jsonl', 'frame-pairs.jsonl', 'frame-labels.jsonl',
+                     'experiences/experiences.jsonl', 'experiences/training_candidates.jsonl',
+                     'experiences/reviews.jsonl'):
+            if (root / name).is_file():
+                (staging / name).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(root / name, staging / name)
+                files[name] = staging / name
         for screenshot in screenshots - {None, ''}:
             relative = portable_path(screenshot)
             path = (root / relative).resolve()

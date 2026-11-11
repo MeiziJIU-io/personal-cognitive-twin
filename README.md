@@ -1,5 +1,7 @@
 # Windows 实时采集 demo
 
+**新版（会话隔离与线上存储）：** 先阅读 [ONLINE_STORAGE.md](ONLINE_STORAGE.md)。新采集按批次保存在 `data/sessions/日期/会话编号/`，总入口为 `data/index.html`。下面的扁平 `data` 路径描述的是兼容旧版模式。
+
 新版两端流程、时间字段、离线迁移和训练导出以 [WORKFLOW.md](WORKFLOW.md) 为准。下方 collector.agent 是旧版诊断入口；新流程使用 collector.pipeline。
 
 第一阶段：采集电脑前台上下文，保留证据，再交给视觉 agent 整理。需要 Windows 10/11、Python 3.11+，在当前登录用户的交互桌面运行。

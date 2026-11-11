@@ -10,3 +10,6 @@ training/
 *.bak
 .env
 .env.*
+.server-venv/
+server-data/
+!server/.env.example

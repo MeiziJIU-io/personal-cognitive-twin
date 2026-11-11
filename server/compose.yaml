@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: capture
+      POSTGRES_DB: capture
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U capture -d capture"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    environment:
+      CAPTURE_DATABASE_URL: postgresql://capture:${POSTGRES_PASSWORD}@db:5432/capture
+      CAPTURE_API_TOKEN: ${CAPTURE_API_TOKEN:?Set CAPTURE_API_TOKEN}
+      CAPTURE_OBJECT_DIR: /data/objects
+    volumes:
+      - object-data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: ["sh", "-c", "python -m server.init_db && uvicorn server.app:create_app --factory --host 0.0.0.0 --port 8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  postgres-data:
+  object-data:

@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-".venv\Scripts\python.exe" -m collector.pipeline analyze
+".venv\Scripts\python.exe" -m collector.pipeline analyze-all
 pause

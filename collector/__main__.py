@@ -8,6 +8,7 @@ import threading
 import time
 from uuid import uuid4
 from .identity import device_id
+from .sessions import create_session, finish_session, record_state, update_index
 
 from .core import Policy, Scheduler, Store
 
@@ -15,6 +16,7 @@ def main():
     parser = argparse.ArgumentParser(description='Windows 实时活动采集（托盘可暂停/退出）')
     parser.add_argument('--config', default='config.json')
     parser.add_argument('--data', default='data')
+    parser.add_argument('--session-dir', help=argparse.SUPPRESS)
     args = parser.parse_args()
     config = json.loads(Path(args.config).read_text(encoding='utf-8'))
     policy = Policy(**config['policy'])
@@ -28,8 +30,9 @@ def main():
     except OSError:
         pass
     stop, paused, reading = threading.Event(), threading.Event(), threading.Event()
-    root = Path(args.data).resolve()
-    root.mkdir(parents=True, exist_ok=True)
+    base = Path(args.data).resolve()
+    root = Path(args.session_dir).resolve() if args.session_dir else create_session(base)
+    metadata = json.loads((root / 'session.json').read_text(encoding='utf-8'))
     logging.basicConfig(filename=root / 'collector.log', level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(message)s')
     def toggle_pause(icon, item):
@@ -51,9 +54,11 @@ def main():
     def collect():
         store = Store(root)
         device = device_id(root)
-        session = str(uuid4())
+        session = metadata['session_id']
+        state = None
         schedule = Scheduler(policy)
         previous_image = None
+        previous_frame = None
         previous_context = None
         try:
             while not stop.is_set():
@@ -61,6 +66,11 @@ def main():
                     # Check pause / lock before reading window content.
                     is_locked = windows.locked()
                     idle = windows.idle_seconds()
+                    next_state = ('paused' if paused.is_set() else 'locked' if is_locked else
+                                  'idle' if idle >= policy.idle_seconds and not reading.is_set() else 'active')
+                    if next_state != state:
+                        record_state(root, next_state)
+                        state = next_state
                     if paused.is_set() or is_locked or (idle >= policy.idle_seconds and not reading.is_set()):
                         schedule.step(time.monotonic(), None, idle, paused.is_set(), is_locked, reading.is_set())
                         previous_context = None
@@ -115,15 +125,19 @@ def main():
                                 digest = hashlib.sha256(shot.tobytes() + str(shot.size).encode()).hexdigest()
                                 schedule.last_shot = now
                                 # Exact pixel dedup preserves small text edits.
+                                event['frame_decision'] = 'changed' if changed or digest != previous_image else 'exact_duplicate'
                                 if digest != previous_image or changed:
                                     folder = root / 'screenshots'
                                     folder.mkdir(exist_ok=True)
                                     path = folder / (digest + '.png')
                                     shot.save(path)
-                                    event['screenshot'] = str(path.relative_to(root))
                                     previous_image = digest
+                                event['screenshot'] = 'screenshots/' + digest + '.png'
                         event['capture_finished_at'] = datetime.now(timezone.utc).isoformat()
                         store.append(event)
+                        from .frame_labels import append_pair
+                        if event.get('screenshot'):
+                            previous_frame = append_pair(root, event, previous_frame)
                         previous_context = context
                 except Exception:
                     logging.exception('采集失败，本轮已跳过')
@@ -139,6 +153,17 @@ def main():
     finally:
         stop.set()
         worker.join()
+        finish_session(root)
+        from .experiences import build
+        build(root, root / 'experiences')
+        update_index(base)
+        if not args.session_dir:
+            from .transport import export_bundle
+            bundle = root / ('capture-' + str(time.time_ns()) + '.zip')
+            export_bundle(root, bundle)
+            print('本次采集包：', bundle)
+            from .sync import auto_sync
+            auto_sync(root)
 
 if __name__ == '__main__':
     main()

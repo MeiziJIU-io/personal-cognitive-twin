@@ -1,0 +1,10 @@
+.git
+.venv
+.server-venv
+data
+imports
+training
+server-data
+**/.env
+**/__pycache__
+**/*.zip
