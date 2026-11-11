@@ -13,3 +13,5 @@ training/
 .server-venv/
 server-data/
 !server/.env.example
+desktop-settings.json
+desktop-error.log

@@ -40,12 +40,16 @@ def evidence_key(event):
 
 
 def analyze(root, model='collector-qwen:16k', endpoint='http://127.0.0.1:11434/api/chat',
-            event_id=None, limit=0, watch=False, timeout=600):
+            event_id=None, limit=0, watch=False, timeout=600, provider='ollama'):
     if not Path(root, 'events.sqlite3').is_file():
         raise ValueError('No collected/imported database')
     local, headers = endpoint_options(endpoint, os.environ.get('COLLECTOR_AGENT_KEY', ''))
-    if not endpoint.endswith('/api/chat'):
+    if provider not in ('ollama', 'openai'):
+        raise ValueError('Unknown provider')
+    if provider == 'ollama' and not endpoint.endswith('/api/chat'):
         raise ValueError('Use the Ollama native /api/chat endpoint')
+    if provider == 'openai' and not endpoint.endswith('/chat/completions'):
+        raise ValueError('Use a complete OpenAI-compatible /chat/completions URL')
     store = Store(root)
     device = device_id(root)
     class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -88,15 +92,26 @@ def analyze(root, model='collector-qwen:16k', endpoint='http://127.0.0.1:11434/a
                     payload = {'model': model, 'stream': False, 'think': False, 'format': 'json',
                                'options': {'num_ctx': 16384, 'num_predict': 2048},
                                'messages': [{'role': 'system', 'content': PROMPT}, user]}
+                    if provider == 'openai':
+                        content = [{'type': 'text', 'text': raw}]
+                        for image_data in user.get('images', []):
+                            content.append({'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,' + image_data}})
+                        payload = {'model': model, 'messages': [{'role': 'system', 'content': PROMPT},
+                                   {'role': 'user', 'content': content}], 'response_format': {'type': 'json_object'}}
                     request = urllib.request.Request(endpoint, json.dumps(payload).encode(), headers)
                     with opener.open(request, timeout=timeout) as response:
                         result = json.load(response)
                     folder = store.root / 'analysis-responses'
                     folder.mkdir(exist_ok=True)
                     (folder / f'{current_id}-{time.time_ns()}.json').write_text(json.dumps(result, ensure_ascii=False), encoding='utf-8')
-                    if result.get('done_reason') == 'length':
+                    if provider == 'openai':
+                        choice = result['choices'][0]
+                        reason, answer = choice.get('finish_reason'), choice['message']['content']
+                    else:
+                        reason, answer = result.get('done_reason'), result['message']['content']
+                    if reason == 'length':
                         raise ValueError('Output truncated; increase budget or reduce input')
-                    output = validate_result(json.loads(result['message']['content']))
+                    output = validate_result(json.loads(answer))
                     output.update({'event_id': current_id,
                                    'event_uid': event.get('event_uid', f'{device}:{current_id}'),
                                    'device_id': event.get('device_id', device),
@@ -105,8 +120,9 @@ def analyze(root, model='collector-qwen:16k', endpoint='http://127.0.0.1:11434/a
                                    'analyzed_at': datetime.now(timezone.utc).isoformat(),
                                    'latency_seconds': round(time.monotonic() - start, 3),
                                    'model': model, 'kind': 'agent_interpretation',
-                                   'evidence_sha256': evidence_key(event), 'thinking': False,
-                                   'context_tokens': 16384, 'review_status': 'unreviewed'})
+                                   'evidence_sha256': evidence_key(event), 'provider': provider,
+                                   'thinking': False if provider == 'ollama' else None,
+                                   'context_tokens': 16384 if provider == 'ollama' else None, 'review_status': 'unreviewed'})
                     with store.db:
                         store.db.execute("UPDATE events SET status='done',result=?,error=NULL WHERE id=?",
                                          (json.dumps(output, ensure_ascii=False), current_id))

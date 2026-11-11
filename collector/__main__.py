@@ -35,6 +35,8 @@ def main():
     metadata = json.loads((root / 'session.json').read_text(encoding='utf-8'))
     logging.basicConfig(filename=root / 'collector.log', level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(message)s')
+    def show_window(icon, item):
+        (root / 'show-window.request').touch()
     def toggle_pause(icon, item):
         paused.clear() if paused.is_set() else paused.set()
         icon.title = '采集已暂停' if paused.is_set() else '正在采集'
@@ -47,6 +49,7 @@ def main():
         icon.stop()
     icon = pystray.Icon('activity-collector', Image.new('RGB', (64, 64), '#327bea'),
                         '正在采集', menu=pystray.Menu(
+        pystray.MenuItem('打开主窗口', show_window),
         pystray.MenuItem('暂停采集', toggle_pause, checked=lambda item: paused.is_set()),
         pystray.MenuItem('阅读模式（不因无操作暂停）', toggle_reading, checked=lambda item: reading.is_set()),
         pystray.MenuItem('停止并退出', quit_app)))
@@ -62,6 +65,10 @@ def main():
         previous_context = None
         try:
             while not stop.is_set():
+                if (root / 'stop.request').exists():
+                    stop.set()
+                    icon.stop()
+                    break
                 try:
                     # Check pause / lock before reading window content.
                     is_locked = windows.locked()
